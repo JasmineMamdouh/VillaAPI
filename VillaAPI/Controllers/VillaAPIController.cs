@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using VillaAPI.Models.Dto;
 using VillaAPI.Data;
 using Microsoft.AspNetCore.JsonPatch;
+using System.Runtime.Serialization;
+using VillaAPI.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace VillaAPI.Controllers
 {
@@ -11,7 +14,23 @@ namespace VillaAPI.Controllers
     [Route("api/VillaAPI")]
     [ApiController]
     public class VillaAPIController : ControllerBase
-    {
+    {/*
+        public ILogger<VillaAPIController> logger; 
+
+        //logger dependency injection
+        //note: for production you need to log into a file, download package like serilog aspnetcore, serilog,sinks.file
+        public VillaAPIController(ILogger<VillaAPIController> _logger)
+        {
+            logger = _logger;
+        }
+        */
+        private ApplicationDbContext _db;
+
+        //get the dbContext by dependency injection
+        public VillaAPIController(ApplicationDbContext db)
+        {
+            _db = db;
+        }
 
         /*let the return type be
          IActionResult -> flexible, std to return diff http status codes
@@ -23,7 +42,8 @@ namespace VillaAPI.Controllers
         [HttpGet]
         public ActionResult<IEnumerable<VillaDTO>> GetVillas()
         {
-            return Ok(VillaStore.villaList);
+            //logger.LogInformation("Getting all Villas");    //using logging
+            return Ok(_db.Villas);
         }
 
         [HttpGet("{id:int}", Name = "GetVilla")]
@@ -37,7 +57,7 @@ namespace VillaAPI.Controllers
             {
                 return BadRequest();
             }
-            var villa = VillaStore.villaList.FirstOrDefault(u => u.Id == id);
+            var villa = _db.Villas.FirstOrDefault(u => u.Id == id);
             if (villa == null)
             {
                 return NotFound();  //'.' didn't find any villa with that id
@@ -61,12 +81,30 @@ namespace VillaAPI.Controllers
             {
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
+            /*that's no longer needed, EF automatically set it
             villaDTO.Id = VillaStore.villaList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
-            VillaStore.villaList.Add(villaDTO);
+            */
+            
+            //map villaDTO to villa
+            Villa model = new()
+            {
+                Amenity = villaDTO.Amenity,
+                Id = villaDTO.Id,
+                Name = villaDTO.Name,
+                Details = villaDTO.Details,
+                Occupancy = villaDTO.Occupancy,
+                Rate = villaDTO.Rate,
+                Sqft = villaDTO.Sqft,
+                ImageUrl = villaDTO.ImageUrl
+            };
+            
+            _db.Villas.Add(model);
+            //Now you have to save changes
+            _db.SaveChanges();
 
-            //instead of just Ok, return the url with the actual resource created
-            //you need to use the Get method which takes the id, you can't pass its endpoint 3ltool except if you give it an explicit name
-            /*
+            /*instead of just Ok, return the url with the actual resource created
+            you need to use the Get method which takes the id, you can't pass its endpoint 3ltool except if you give it an explicit name
+            
              routeName (string, required) :The name of the route to generate the URL for.Usually matches the Name property of a route in a controller.
             
             routeValues (object, optional) The route parameters needed to construct the URL for the created resource. Typically includes the id of the newly created entity.
@@ -87,13 +125,14 @@ namespace VillaAPI.Controllers
             {
                 return BadRequest();
             }
-            var villa = VillaStore.villaList.FirstOrDefault(u => u.Id == id);
+            var villa = _db.Villas.FirstOrDefault(u => u.Id == id);
 
             if (villa == null)
             {
                 return NotFound();
             }
-            VillaStore.villaList.Remove(villa);
+            _db.Villas.Remove(villa);
+            _db.SaveChanges();
             //done successfully but when we delete, we don't return anything
             return NoContent();
 
@@ -109,7 +148,7 @@ namespace VillaAPI.Controllers
             {
                 return BadRequest();
             }
-
+            /* you don't need all of this, EF smart to figure out what record you need to update
             //then retrieve the obj
             var villa = VillaStore.villaList.FirstOrDefault(u => u.Id == id);
             if (villa == null)
@@ -119,37 +158,73 @@ namespace VillaAPI.Controllers
             villa.Name = villaDTO.Name;
             villa.Sqft = villaDTO.Sqft;
             villa.Occupancy = villaDTO.Occupancy;
+            */
 
+            //map villaDTO to villa
+            Villa model = new()
+            {
+                Amenity = villaDTO.Amenity,
+                Id = villaDTO.Id,
+                Name = villaDTO.Name,
+                Details = villaDTO.Details,
+                Occupancy = villaDTO.Occupancy,
+                Rate = villaDTO.Rate,
+                Sqft = villaDTO.Sqft,
+                ImageUrl = villaDTO.ImageUrl
+            };
+
+            _db.Villas.Update(model);
+            _db.SaveChanges();
             return NoContent();
         }
         [HttpPatch("id:int", Name = "UpdatePartialVilla")]  //update one of the fields only
+        [Consumes("application/json-patch+json")]
         public IActionResult UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaDTO> patchDTO)
         {
             if(patchDTO == null || id == 0)
             {
                 return BadRequest();
             }
-            var villa = VillaStore.villaList.FirstOrDefault(u => u.Id == id);
+            //you must add the AsNoTracking part to avoid the exception of tracking
+            var villa = _db.Villas.AsNoTracking().FirstOrDefault(u => u.Id == id);
             if (villa == null)
             {
                 return BadRequest();
             }
 
-            // Convert Villa to VillaDTO (if needed)
-            var villaDTO = new VillaDTO
+            // Convert Villa to VillaDTO 
+            VillaDTO villaDTO = new ()
             {
                 Name = villa.Name,
-                Occupancy = villa.Occupancy
+                Occupancy = villa.Occupancy,
+                Amenity = villa.Amenity,
+                Id = villa.Id,
+                Details = villa.Details,
+                Rate = villa.Rate,
+                Sqft = villa.Sqft,
+                ImageUrl = villa.ImageUrl
             };
 
             // the jsonPatchDocument obj has what is to be updated, so just apply it on the villa obj
 
             // Apply the patch with error handling to be stored in ModelState'new 9'
-            patchDTO.ApplyTo(villaDTO, error =>
+            patchDTO.ApplyTo(villaDTO,ModelState);
+
+            //to update, convert back to villa
+            Villa model = new()
             {
-                ModelState.AddModelError(error.AffectedObject?.ToString() ?? "Unknown", error.ErrorMessage);
-            });
-           
+                Amenity = villaDTO.Amenity,
+                Id = villaDTO.Id,
+                Name = villaDTO.Name,
+                Details = villaDTO.Details,
+                Occupancy = villaDTO.Occupancy,
+                Rate = villaDTO.Rate,
+                Sqft = villaDTO.Sqft,
+                ImageUrl = villaDTO.ImageUrl
+            };
+          _db.Villas.Update(model);
+            _db.SaveChanges();
+
             if (!ModelState.IsValid)
             {
                 return BadRequest();

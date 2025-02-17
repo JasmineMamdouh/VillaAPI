@@ -1,7 +1,8 @@
 
 using Microsoft.AspNetCore.JsonPatch;
-
+using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using VillaAPI.Data;
 
 
 namespace VillaAPI
@@ -13,8 +14,13 @@ namespace VillaAPI
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
+            builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            {
+                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultSQLConnection"));
+            });
 
-            builder.Services.AddControllers();
+            //note you must add the newtonsoftJson to deserialize the JsonPathDocument
+            builder.Services.AddControllers().AddNewtonsoftJson();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen(options =>
@@ -25,7 +31,7 @@ namespace VillaAPI
                     Version = "v1"
                 });
                 // Support JSON Patch for Swagger
-                options.SupportNonNullableReferenceTypes();
+                //options.SupportNonNullableReferenceTypes();
                 options.MapType<JsonPatchDocument>(() => new OpenApiSchema
                 {
                     Type = "object",

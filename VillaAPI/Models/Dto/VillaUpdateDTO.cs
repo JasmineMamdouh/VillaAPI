@@ -2,22 +2,22 @@
 
 namespace VillaAPI.Models.Dto
 {
-    /*Note we have to make different DTOs for update and create
-     * create we don't need the id, update we need the id, to know which record to update
-     * Image we can ask for it in case of update, not necsessary for create
-     */
-    public class VillaDTO
+    public class VillaUpdateDTO
     {
+        [Required] //here the id is required , we can change validations too
         public int Id { get; set; }
         [Required]
         [MaxLength(30)]
         public string Name { get; set; }
         public string Details { get; set; }
+        [Required]
         public double Rate { get; set; }
+        [Required]
         public int Occupancy { get; set; }
+        [Required]
         public int Sqft { get; set; }
+        [Required]
         public string ImageUrl { get; set; }
         public string Amenity { get; set; }
     }
-
 }

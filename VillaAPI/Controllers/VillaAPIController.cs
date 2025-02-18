@@ -70,26 +70,26 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        public ActionResult<VillaDTO> CreateVilla([FromBody] VillaDTO villaDTO)
+        public ActionResult<VillaDTO> CreateVilla([FromBody] VillaCreateDTO villaDTO)
         {
             if (villaDTO == null)
             {
                 return BadRequest(villaDTO);
             }
-            //note when creating a villa, id must be 0
+            /*note when creating a villa, id must be 0
             if (villaDTO.Id > 0)
             {
                 return StatusCode(StatusCodes.Status500InternalServerError);
             }
-            /*that's no longer needed, EF automatically set it
-            villaDTO.Id = VillaStore.villaList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
-            */
+            /*that's no longer needed, EF automatically set it*/
+            //villaDTO.Id = VillaStore.villaList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
+            
             
             //map villaDTO to villa
             Villa model = new()
             {
                 Amenity = villaDTO.Amenity,
-                Id = villaDTO.Id,
+                //Id = villaDTO.Id, //will be populated automatically
                 Name = villaDTO.Name,
                 Details = villaDTO.Details,
                 Occupancy = villaDTO.Occupancy,
@@ -111,7 +111,7 @@ namespace VillaAPI.Controllers
             
             value (object, optional) The response body containing the newly created resource. Usually the DTO or entity representation.
              */
-            return CreatedAtRoute("GetVilla", new { id = villaDTO.Id }, villaDTO);
+            return CreatedAtRoute("GetVilla", new { id = model.Id }, model);
 
         }
 
@@ -141,7 +141,7 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [HttpPut("{id:int}", Name = "UpdateVilla")] //update the whole record, common
-        public IActionResult UpdateVilla(int id, [FromBody] VillaDTO villaDTO)
+        public IActionResult UpdateVilla(int id, [FromBody] VillaUpdateDTO villaDTO)
         {
             //first check for possible errors
             if (villaDTO == null || id != villaDTO.Id)
@@ -179,7 +179,7 @@ namespace VillaAPI.Controllers
         }
         [HttpPatch("id:int", Name = "UpdatePartialVilla")]  //update one of the fields only
         [Consumes("application/json-patch+json")]
-        public IActionResult UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaDTO> patchDTO)
+        public IActionResult UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaUpdateDTO> patchDTO)
         {
             if(patchDTO == null || id == 0)
             {
@@ -193,7 +193,7 @@ namespace VillaAPI.Controllers
             }
 
             // Convert Villa to VillaDTO 
-            VillaDTO villaDTO = new ()
+            VillaUpdateDTO villaDTO = new ()
             {
                 Name = villa.Name,
                 Occupancy = villa.Occupancy,

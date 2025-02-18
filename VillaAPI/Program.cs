@@ -19,6 +19,8 @@ namespace VillaAPI
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultSQLConnection"));
             });
 
+            builder.Services.AddAutoMapper(typeof(MappingConfig));
+
             //note you must add the newtonsoftJson to deserialize the JsonPathDocument
             builder.Services.AddControllers().AddNewtonsoftJson();
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

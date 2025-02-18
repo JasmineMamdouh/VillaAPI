@@ -39,11 +39,24 @@ namespace VillaAPI.Controllers
          async Task<ActionResult<T>> -> for async methods when using EF or external services  --> Post
         */
 
+        /*Let any dealing with the EF dbContext be async
+         * In ASP.NET Core API, async methods are commonly used to improve performance, scalability, and responsiveness.
+         * 1. Improved Scalability
+            Async methods free up threads while waiting for I/O operations (like database queries, HTTP requests, or file access).
+            This allows the server to handle more concurrent requests with fewer resources.
+           2. Non-Blocking I/O Operations
+              Traditional synchronous calls block the thread until the operation is completed.
+              Async methods let the thread perform other tasks while waiting for I/O operations (e.g., database calls, external API calls).
+           3. Database Operations
+               Use Case: When interacting with databases using Entity Framework Core, async methods like ToListAsync(), FirstOrDefaultAsync(), and SaveChangesAsync() prevent blocking the request thread.
+         * 
+         *  If you don’t use await, the method completes instantly and returns a Task<int>, without waiting for the delay to finish.
+         */
         [HttpGet]
-        public ActionResult<IEnumerable<VillaDTO>> GetVillas()
+        public async Task<ActionResult<IEnumerable<VillaDTO>>> GetVillas()
         {
             //logger.LogInformation("Getting all Villas");    //using logging
-            return Ok(_db.Villas);
+            return Ok(await _db.Villas.ToListAsync());
         }
 
         [HttpGet("{id:int}", Name = "GetVilla")]
@@ -51,13 +64,13 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(200, Type = typeof(VillaDTO))] //Ok + can specify the success model
         [ProducesResponseType(404)] //NotFound
         [ProducesResponseType(StatusCodes.Status400BadRequest)] //BadRequest, if you don't remeber the codes
-        public ActionResult<VillaDTO> GetVilla(int id)
+        public async Task<ActionResult<VillaDTO>> GetVilla(int id)
         {
             if (id == 0)
             {
                 return BadRequest();
             }
-            var villa = _db.Villas.FirstOrDefault(u => u.Id == id);
+            var villa = await _db.Villas.FirstOrDefaultAsync(u => u.Id == id);
             if (villa == null)
             {
                 return NotFound();  //'.' didn't find any villa with that id
@@ -70,7 +83,7 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        public ActionResult<VillaDTO> CreateVilla([FromBody] VillaCreateDTO villaDTO)
+        public async Task<ActionResult<VillaDTO>> CreateVilla([FromBody] VillaCreateDTO villaDTO)
         {
             if (villaDTO == null)
             {
@@ -98,7 +111,7 @@ namespace VillaAPI.Controllers
                 ImageUrl = villaDTO.ImageUrl
             };
             
-            _db.Villas.Add(model);
+            await _db.Villas.AddAsync(model);
             //Now you have to save changes
             _db.SaveChanges();
 
@@ -119,20 +132,20 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [HttpDelete("{id:int}", Name = "DeleteVilla")]
-        public IActionResult DeleteVilla(int id)
+        public async Task<IActionResult> DeleteVilla(int id)
         {
             if (id == 0)
             {
                 return BadRequest();
             }
-            var villa = _db.Villas.FirstOrDefault(u => u.Id == id);
+            var villa = await _db.Villas.FirstOrDefaultAsync(u => u.Id == id);
 
             if (villa == null)
             {
                 return NotFound();
             }
-            _db.Villas.Remove(villa);
-            _db.SaveChanges();
+            _db.Villas.Remove(villa);   //not we don't have a remove async
+            await _db.SaveChangesAsync();
             //done successfully but when we delete, we don't return anything
             return NoContent();
 
@@ -141,7 +154,7 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [HttpPut("{id:int}", Name = "UpdateVilla")] //update the whole record, common
-        public IActionResult UpdateVilla(int id, [FromBody] VillaUpdateDTO villaDTO)
+        public async Task<IActionResult> UpdateVilla(int id, [FromBody] VillaUpdateDTO villaDTO)
         {
             //first check for possible errors
             if (villaDTO == null || id != villaDTO.Id)
@@ -174,12 +187,12 @@ namespace VillaAPI.Controllers
             };
 
             _db.Villas.Update(model);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
             return NoContent();
         }
         [HttpPatch("id:int", Name = "UpdatePartialVilla")]  //update one of the fields only
         [Consumes("application/json-patch+json")]
-        public IActionResult UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaUpdateDTO> patchDTO)
+        public async Task<IActionResult> UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaUpdateDTO> patchDTO)
         {
             if(patchDTO == null || id == 0)
             {
@@ -223,7 +236,7 @@ namespace VillaAPI.Controllers
                 ImageUrl = villaDTO.ImageUrl
             };
           _db.Villas.Update(model);
-            _db.SaveChanges();
+            await _db.SaveChangesAsync();
 
             if (!ModelState.IsValid)
             {

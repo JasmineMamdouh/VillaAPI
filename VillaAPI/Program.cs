@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
 using VillaAPI.Data;
+using VillaAPI.Repository;
+using VillaAPI.Repository.IRepository;
 
 
 namespace VillaAPI
@@ -18,7 +20,9 @@ namespace VillaAPI
             {
                 options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultSQLConnection"));
             });
-
+            
+            builder.Services.AddScoped<IVillaRepository, VillaRepository>();
+            
             builder.Services.AddAutoMapper(typeof(MappingConfig));
 
             //note you must add the newtonsoftJson to deserialize the JsonPathDocument

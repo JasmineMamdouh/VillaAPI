@@ -9,6 +9,7 @@ using VillaAPI.Models;
 using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
+using VillaAPI.Repository.IRepository;
 
 namespace VillaAPI.Controllers
 {
@@ -27,13 +28,15 @@ namespace VillaAPI.Controllers
             logger = _logger;
         }
         */
-        private ApplicationDbContext _db;
+        //private ApplicationDbContext _db;
+        private readonly IVillaRepository _dbVilla;
         private readonly IMapper mapper;
 
         //get the dbContext by dependency injection
-        public VillaAPIController(ApplicationDbContext db, IMapper _mapper)
+        public VillaAPIController(IVillaRepository dbVilla, IMapper _mapper)
         {
-            _db = db;
+            //_db = db;
+            _dbVilla = dbVilla;
             mapper = _mapper;
         }
 
@@ -60,7 +63,7 @@ namespace VillaAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<VillaDTO>>> GetVillas()
         {
-            IEnumerable<Villa> villaList = await _db.Villas.ToListAsync();
+            IEnumerable<Villa> villaList = await _dbVilla.GetAllAsync();
             //logger.LogInformation("Getting all Villas");    //using logging
             return Ok(mapper.Map<List<VillaDTO>>(villaList));
         }
@@ -78,7 +81,7 @@ namespace VillaAPI.Controllers
             {
                 return BadRequest();
             }
-            var villa = await _db.Villas.FirstOrDefaultAsync(u => u.Id == id);
+            var villa = await _dbVilla.GetAsync(u => u.Id == id);
             if (villa == null)
             {
                 return NotFound();  //'.' didn't find any villa with that id
@@ -123,10 +126,10 @@ namespace VillaAPI.Controllers
              */
             //use mapper instead
             Villa model = mapper.Map<Villa>(createDTO);  // <outputtype> (inputtype)
-           
-            await _db.Villas.AddAsync(model);
+
+            await _dbVilla.CreateAsync(model);  //this create and save together
             //Now you have to save changes
-            _db.SaveChanges();
+            //_db.SaveChanges();
 
             /*instead of just Ok, return the url with the actual resource created
             you need to use the Get method which takes the id, you can't pass its endpoint 3ltool except if you give it an explicit name
@@ -151,14 +154,14 @@ namespace VillaAPI.Controllers
             {
                 return BadRequest();
             }
-            var villa = await _db.Villas.FirstOrDefaultAsync(u => u.Id == id);
+            var villa = await _dbVilla.GetAsync(u => u.Id == id);
 
             if (villa == null)
             {
                 return NotFound();
             }
-            _db.Villas.Remove(villa);   //not we don't have a remove async
-            await _db.SaveChangesAsync();
+            await _dbVilla.RemoveAsync(villa);   //not we don't have a remove async
+            //await _db.SaveChangesAsync();
             //done successfully but when we delete, we don't return anything
             return NoContent();
 
@@ -202,8 +205,8 @@ namespace VillaAPI.Controllers
             //use mapper instead
             Villa model = mapper.Map<Villa>(updateDTO);  // <output> input
 
-            _db.Villas.Update(model);
-            await _db.SaveChangesAsync();
+            await _dbVilla.UpdateAsync(model);
+            //await _db.SaveChangesAsync();
             return NoContent();
         }
         [HttpPatch("id:int", Name = "UpdatePartialVilla")]  //update one of the fields only
@@ -215,7 +218,7 @@ namespace VillaAPI.Controllers
                 return BadRequest();
             }
             //you must add the AsNoTracking part to avoid the exception of tracking
-            var villa = _db.Villas.AsNoTracking().FirstOrDefault(u => u.Id == id);
+            var villa = await _dbVilla.GetAsync(u => u.Id == id, tracked:false);
             if (villa == null)
             {
                 return BadRequest();
@@ -257,8 +260,8 @@ namespace VillaAPI.Controllers
             //use mapper instead
             Villa model = mapper.Map<Villa>(villaDTO);  // <output> input
            
-            _db.Villas.Update(model);
-            await _db.SaveChangesAsync();
+            await _dbVilla.UpdateAsync(model);
+            //await _db.SaveChangesAsync();
 
             if (!ModelState.IsValid)
             {

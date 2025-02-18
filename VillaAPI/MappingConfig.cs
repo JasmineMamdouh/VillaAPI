@@ -13,7 +13,8 @@ namespace VillaAPI
             CreateMap<Villa, VillaDTO>();  // Maps properties automatically <src, dst>
             CreateMap<VillaDTO, Villa>();  // Reverse mapping
             CreateMap<Villa, VillaCreateDTO>().ReverseMap(); //to include its reverse as well
-            CreateMap<Villa, VillaUpdateDTO>().ReverseMap();
+            CreateMap<Villa, VillaUpdateDTO>();
+            CreateMap<VillaUpdateDTO,Villa>();
         }
         //we can also do custom mappings 
     }

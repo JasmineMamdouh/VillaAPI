@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using VillaAPI.Repository.IRepository;
+using System.Net;
+using Azure;
 
 namespace VillaAPI.Controllers
 {
@@ -29,7 +31,7 @@ namespace VillaAPI.Controllers
         }
         */
 
-        
+        protected APIResponse _response;
         //private ApplicationDbContext _db;
         private readonly IVillaRepository _dbVilla;
         private readonly IMapper mapper;
@@ -40,6 +42,7 @@ namespace VillaAPI.Controllers
             //_db = db;
             _dbVilla = dbVilla;
             mapper = _mapper;
+            this._response = new();
         }
 
         /*let the return type be
@@ -63,11 +66,22 @@ namespace VillaAPI.Controllers
          *  If you don’t use await, the method completes instantly and returns a Task<int>, without waiting for the delay to finish.
          */
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<VillaDTO>>> GetVillas()
+        public async Task<ActionResult<APIResponse>> GetVillas()
         {
-            IEnumerable<Villa> villaList = await _dbVilla.GetAllAsync();
-            //logger.LogInformation("Getting all Villas");    //using logging
-            return Ok(mapper.Map<List<VillaDTO>>(villaList));
+            try
+            {
+                IEnumerable<Villa> villaList = await _dbVilla.GetAllAsync();
+                //logger.LogInformation("Getting all Villas");    //using logging
+                _response.Result = mapper.Map<List<VillaDTO>>(villaList);
+                _response.StatusCode = HttpStatusCode.OK;
+                return Ok(_response);
+            }
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+            }
+            return _response;
         }
 
 
@@ -77,19 +91,32 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(200, Type = typeof(VillaDTO))] //Ok + can specify the success model
         [ProducesResponseType(404)] //NotFound
         [ProducesResponseType(StatusCodes.Status400BadRequest)] //BadRequest, if you don't remeber the codes
-        public async Task<ActionResult<VillaDTO>> GetVilla(int id)
+        public async Task<ActionResult<APIResponse>> GetVilla(int id)
         {
-            if (id == 0)
+            try
             {
-                return BadRequest();
+                if (id == 0)
+                {
+                    _response.StatusCode = HttpStatusCode.BadRequest;
+                    return BadRequest(_response);
+                }
+                var villa = await _dbVilla.GetAsync(u => u.Id == id);
+                if (villa == null)
+                {
+                    _response.StatusCode = HttpStatusCode.NotFound;
+                    return NotFound(_response);  //'.' didn't find any villa with that id
+                }
+                _response.Result = mapper.Map<VillaDTO>(villa);
+                _response.StatusCode = HttpStatusCode.OK;
+                return Ok(_response);
             }
-            var villa = await _dbVilla.GetAsync(u => u.Id == id);
-            if (villa == null)
+            catch (Exception ex)
             {
-                return NotFound();  //'.' didn't find any villa with that id
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
             }
+            return _response;
 
-            return Ok(villa);
         }
 
 
@@ -98,51 +125,63 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [ProducesResponseType(StatusCodes.Status201Created)]
-        public async Task<ActionResult<VillaDTO>> CreateVilla([FromBody] VillaCreateDTO createDTO)
+        public async Task<ActionResult<APIResponse>> CreateVilla([FromBody] VillaCreateDTO createDTO)
         {
-            if (createDTO == null)
+            try
             {
-                return BadRequest(createDTO);
+                if (createDTO == null)
+                {
+                    return BadRequest(createDTO);
+                }
+                /*note when creating a villa, id must be 0
+                if (villaDTO.Id > 0)
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError);
+                }
+                /*that's no longer needed, EF automatically set it*/
+                //villaDTO.Id = VillaStore.villaList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
+
+
+                //map villaDTO to villa, can use automapper instead
+                /* Villa model = new()
+                 {
+                     Amenity = createDTO.Amenity,
+                     //Id = villaDTO.Id, //will be populated automatically
+                     Name = createDTO.Name,
+                     Details = createDTO.Details,
+                     Occupancy = createDTO.Occupancy,
+                     Rate = createDTO.Rate,
+                     Sqft = createDTO.Sqft,
+                     ImageUrl = createDTO.ImageUrl
+                 };
+                 */
+                //use mapper instead
+                Villa villa = mapper.Map<Villa>(createDTO);  // <outputtype> (inputtype)
+
+                await _dbVilla.CreateAsync(villa);  //this create and save together
+                                                    //Now you have to save changes
+                                                    //_db.SaveChanges();
+
+                /*instead of just Ok, return the url with the actual resource created
+                you need to use the Get method which takes the id, you can't pass its endpoint 3ltool except if you give it an explicit name
+
+                 routeName (string, required) :The name of the route to generate the URL for.Usually matches the Name property of a route in a controller.
+
+                routeValues (object, optional) The route parameters needed to construct the URL for the created resource. Typically includes the id of the newly created entity.
+
+                value (object, optional) The response body containing the newly created resource. Usually the DTO or entity representation.
+                 */
+                _response.Result = mapper.Map<VillaDTO>(villa);
+                _response.StatusCode = HttpStatusCode.Created;
+
+                return CreatedAtRoute("GetVilla", new { id = villa.Id }, _response);
             }
-            /*note when creating a villa, id must be 0
-            if (villaDTO.Id > 0)
+            catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError);
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
             }
-            /*that's no longer needed, EF automatically set it*/
-            //villaDTO.Id = VillaStore.villaList.OrderByDescending(u => u.Id).FirstOrDefault().Id + 1;
-
-
-            //map villaDTO to villa, can use automapper instead
-            /* Villa model = new()
-             {
-                 Amenity = createDTO.Amenity,
-                 //Id = villaDTO.Id, //will be populated automatically
-                 Name = createDTO.Name,
-                 Details = createDTO.Details,
-                 Occupancy = createDTO.Occupancy,
-                 Rate = createDTO.Rate,
-                 Sqft = createDTO.Sqft,
-                 ImageUrl = createDTO.ImageUrl
-             };
-             */
-            //use mapper instead
-            Villa model = mapper.Map<Villa>(createDTO);  // <outputtype> (inputtype)
-
-            await _dbVilla.CreateAsync(model);  //this create and save together
-            //Now you have to save changes
-            //_db.SaveChanges();
-
-            /*instead of just Ok, return the url with the actual resource created
-            you need to use the Get method which takes the id, you can't pass its endpoint 3ltool except if you give it an explicit name
-            
-             routeName (string, required) :The name of the route to generate the URL for.Usually matches the Name property of a route in a controller.
-            
-            routeValues (object, optional) The route parameters needed to construct the URL for the created resource. Typically includes the id of the newly created entity.
-            
-            value (object, optional) The response body containing the newly created resource. Usually the DTO or entity representation.
-             */
-            return CreatedAtRoute("GetVilla", new { id = model.Id }, model);
+            return _response;
 
         }
 
@@ -150,77 +189,100 @@ namespace VillaAPI.Controllers
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [HttpDelete("{id:int}", Name = "DeleteVilla")]
-        public async Task<IActionResult> DeleteVilla(int id)
+        public async Task<ActionResult<APIResponse>> DeleteVilla(int id)
         {
-            if (id == 0)
+            try
             {
-                return BadRequest();
-            }
-            var villa = await _dbVilla.GetAsync(u => u.Id == id);
+                if (id == 0)
+                {
+                    return BadRequest();
+                }
+                var villa = await _dbVilla.GetAsync(u => u.Id == id);
 
-            if (villa == null)
-            {
-                return NotFound();
+                if (villa == null)
+                {
+                    return NotFound();
+                }
+                await _dbVilla.RemoveAsync(villa);   //not we don't have a remove async
+                                                     //await _db.SaveChangesAsync();
+                                                     //done successfully but when we delete, we don't return anything
+
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+                return Ok(_response);
             }
-            await _dbVilla.RemoveAsync(villa);   //not we don't have a remove async
-            //await _db.SaveChangesAsync();
-            //done successfully but when we delete, we don't return anything
-            return NoContent();
+            catch (Exception ex)
+            {
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
+            }
+            return _response;
 
         }
 
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [HttpPut("{id:int}", Name = "UpdateVilla")] //update the whole record, common
-        public async Task<IActionResult> UpdateVilla(int id, [FromBody] VillaUpdateDTO updateDTO)
+        public async Task<ActionResult<APIResponse>> UpdateVilla(int id, [FromBody] VillaUpdateDTO updateDTO)
         {
-            //first check for possible errors
-            if (updateDTO == null || id != updateDTO.Id)
+            try
             {
-                return BadRequest();
+                //first check for possible errors
+                if (updateDTO == null || id != updateDTO.Id)
+                {
+                    return BadRequest();
+                }
+                /* you don't need all of this, EF smart to figure out what record you need to update
+                //then retrieve the obj
+                var villa = VillaStore.villaList.FirstOrDefault(u => u.Id == id);
+                if (villa == null)
+                {
+                    return BadRequest();
+                }
+                villa.Name = villaDTO.Name;
+                villa.Sqft = villaDTO.Sqft;
+                villa.Occupancy = villaDTO.Occupancy;
+                */
+
+                //map villaDTO to villa
+                /*Villa model = new()
+                {
+                    Amenity = villaDTO.Amenity,
+                    Id = villaDTO.Id,
+                    Name = villaDTO.Name,
+                    Details = villaDTO.Details,
+                    Occupancy = villaDTO.Occupancy,
+                    Rate = villaDTO.Rate,
+                    Sqft = villaDTO.Sqft,
+                    ImageUrl = villaDTO.ImageUrl
+                };*/
+
+                //use mapper instead
+                Villa model = mapper.Map<Villa>(updateDTO);  // <output> input
+
+                await _dbVilla.UpdateAsync(model);
+                //await _db.SaveChangesAsync();
+                _response.StatusCode = HttpStatusCode.NoContent;
+                _response.IsSuccess = true;
+                return Ok(_response);
             }
-            /* you don't need all of this, EF smart to figure out what record you need to update
-            //then retrieve the obj
-            var villa = VillaStore.villaList.FirstOrDefault(u => u.Id == id);
-            if (villa == null)
+            catch (Exception ex)
             {
-                return BadRequest();
+                _response.IsSuccess = false;
+                _response.ErrorMessages = new List<string>() { ex.ToString() };
             }
-            villa.Name = villaDTO.Name;
-            villa.Sqft = villaDTO.Sqft;
-            villa.Occupancy = villaDTO.Occupancy;
-            */
-
-            //map villaDTO to villa
-            /*Villa model = new()
-            {
-                Amenity = villaDTO.Amenity,
-                Id = villaDTO.Id,
-                Name = villaDTO.Name,
-                Details = villaDTO.Details,
-                Occupancy = villaDTO.Occupancy,
-                Rate = villaDTO.Rate,
-                Sqft = villaDTO.Sqft,
-                ImageUrl = villaDTO.ImageUrl
-            };*/
-
-            //use mapper instead
-            Villa model = mapper.Map<Villa>(updateDTO);  // <output> input
-
-            await _dbVilla.UpdateAsync(model);
-            //await _db.SaveChangesAsync();
-            return NoContent();
+            return _response;
         }
         [HttpPatch("id:int", Name = "UpdatePartialVilla")]  //update one of the fields only
         [Consumes("application/json-patch+json")]
         public async Task<IActionResult> UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaUpdateDTO> patchDTO)
         {
-            if(patchDTO == null || id == 0)
+            if (patchDTO == null || id == 0)
             {
                 return BadRequest();
             }
             //you must add the AsNoTracking part to avoid the exception of tracking
-            var villa = await _dbVilla.GetAsync(u => u.Id == id, tracked:false);
+            var villa = await _dbVilla.GetAsync(u => u.Id == id, tracked: false);
             if (villa == null)
             {
                 return BadRequest();
@@ -244,7 +306,7 @@ namespace VillaAPI.Controllers
             // the jsonPatchDocument obj has what is to be updated, so just apply it on the villa obj
 
             // Apply the patch with error handling to be stored in ModelState'new 9'
-            patchDTO.ApplyTo(villaDTO,ModelState);
+            patchDTO.ApplyTo(villaDTO, ModelState);
 
             //to update, convert back to villa
             /*
@@ -261,7 +323,7 @@ namespace VillaAPI.Controllers
             };*/
             //use mapper instead
             Villa model = mapper.Map<Villa>(villaDTO);  // <output> input
-           
+
             await _dbVilla.UpdateAsync(model);
             //await _db.SaveChangesAsync();
 

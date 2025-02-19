@@ -9,60 +9,25 @@ namespace VillaAPI.Repository
 {
 
     //here we will deal with the db context so add it using DI
-    public class VillaRepository : IVillaRepository
+    //let it inherit from the genric repo too
+    public class VillaRepository :Repository<Villa>, IVillaRepository
     {
         private readonly ApplicationDbContext _db;
 
-        public VillaRepository(ApplicationDbContext db)
+        //we need to pass to repository class the appdbcontext 
+        //so :base(db) -> calls the constructor of the base class (Repository<Villa>) and passes db to it.
+        public VillaRepository(ApplicationDbContext db):base(db)
         {
-            _db = db; 
+            _db = db; // stores db in the private field _db for use inside VillaRepository.
         }
-        public async Task CreateAsync(Villa entity)
-        {
-            await _db.Villas.AddAsync(entity);
-            await SaveAsync();
-        }
+       
 
-        public async Task<Villa> GetAsync(Expression<Func<Villa, bool>> filter = null, bool tracked = true)
+        public async Task<Villa> UpdateAsync(Villa entity)
         {
-            IQueryable<Villa> query = _db.Villas;
-            if (!tracked)
-            {
-                query = query.AsNoTracking();
-            }
-            if (filter != null)
-            {
-                query = query.Where(filter);
-            }
-            return await query.FirstOrDefaultAsync();   //deferred execution, by using ToList it turns it to immediate execution
-
-        }
-
-        public async Task<List<Villa>> GetAllAsync(Expression<Func<Villa, bool>> filter = null)
-        {
-            IQueryable<Villa> query = _db.Villas;
-            if (filter != null)
-            {
-                query = query.Where(filter);
-            }
-            return await query.ToListAsync();   //deferred execution, by using ToList it turns it to immediate execution
-        }
-
-        public async Task RemoveAsync(Villa entity)
-        {
-            _db.Villas.Remove(entity);
-            await SaveAsync();
-        }
-
-        public async Task SaveAsync()
-        {
-            await _db.SaveChangesAsync();
-        }
-
-        public async Task UpdateAsync(Villa entity)
-        {
+            entity.UpdatedDate = DateTime.Now;
             _db.Villas.Update(entity);
-            await SaveAsync();
+            await _db.SaveChangesAsync();
+            return entity;
         }
     }
 }

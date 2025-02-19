@@ -5,13 +5,10 @@ namespace VillaAPI.Repository.IRepository
 {
 
     //deals with data
-    public interface IVillaRepository
+    //let it inherit from the generic repo interface
+    public interface IVillaRepository : IRepositoryy<Villa>
     {
-        Task<List<Villa>> GetAllAsync(Expression<Func<Villa, bool>> filter = null);
-        Task<Villa> GetAsync(Expression<Func<Villa, bool>> filter = null, bool tracked = true);
-        Task CreateAsync(Villa entity);
-        Task UpdateAsync(Villa entity);
-        Task RemoveAsync(Villa entity);
-        Task SaveAsync();
+        Task<Villa> UpdateAsync(Villa entity);//let it return the updated villa
+        
     }
 }

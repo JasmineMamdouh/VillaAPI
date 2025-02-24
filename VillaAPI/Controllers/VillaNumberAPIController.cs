@@ -14,13 +14,15 @@ namespace VillaAPI.Controllers
     {
         protected APIResponse _response;
         private readonly IVillaNumberRepository _dbVillaNumber;
+        private readonly IVillaRepository _dbVilla; //to use to check if foreign key exist
         private readonly IMapper mapper;
 
         //get the dbContext by dependency injection
-        public VillaNumberAPIController(IVillaNumberRepository dbVillaNumber, IMapper _mapper)
+        public VillaNumberAPIController(IVillaNumberRepository dbVillaNumber,IVillaRepository dbVilla , IMapper _mapper)
         {
             //_db = db;
             _dbVillaNumber = dbVillaNumber;
+            _dbVilla = dbVilla;
             mapper = _mapper;
             this._response = new();
         }
@@ -82,6 +84,20 @@ namespace VillaAPI.Controllers
         {
             try
             {
+                //ensure the primary key uniqeness
+                if (await _dbVillaNumber.GetAsync(u => u.VillaNo == villaNumberDTO.VillaNo) != null)
+                {
+                    ModelState.AddModelError("CustomError", "Villa Number already Exists!");
+                    return BadRequest(ModelState);
+                }
+                //check if foreign key value is valid
+                if(await _dbVilla.GetAsync(u => u.Id == villaNumberDTO.VillaId) == null)
+                {
+                    ModelState.AddModelError("CustomError", "VillaId is invalid!");
+                    return BadRequest(ModelState);
+                }
+                //check if the villa id foreign key exists 
+                //if ()
                 if (villaNumberDTO == null)
                 {
                     _response.IsSuccess = false;
@@ -139,6 +155,12 @@ namespace VillaAPI.Controllers
                 if(villaNumberDTO == null || id!= villaNumberDTO.VillaNo)
                 {
                     return BadRequest();
+                }
+                //check if foreign key value is valid
+                if (await _dbVilla.GetAsync(u => u.Id == villaNumberDTO.VillaId) == null)
+                {
+                    ModelState.AddModelError("CustomError", "VillaId is invalid!");
+                    return BadRequest(ModelState);
                 }
                 VillaNumber villaNo = mapper.Map<VillaNumber>(villaNumberDTO);
                 await _dbVillaNumber.UpdateAsync(villaNo);

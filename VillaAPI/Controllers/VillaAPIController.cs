@@ -273,7 +273,7 @@ namespace VillaAPI.Controllers
             }
             return _response;
         }
-        [HttpPatch("id:int", Name = "UpdatePartialVilla")]  //update one of the fields only
+        [HttpPatch("{id:int}", Name = "UpdatePartialVilla")]  //update one of the fields only
         [Consumes("application/json-patch+json")]
         public async Task<IActionResult> UpdatePartialVilla(int id, [FromBody] JsonPatchDocument<VillaUpdateDTO> patchDTO)
         {

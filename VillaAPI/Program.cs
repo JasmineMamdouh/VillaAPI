@@ -22,7 +22,8 @@ namespace VillaAPI
             });
             
             builder.Services.AddScoped<IVillaRepository, VillaRepository>();
-            
+            builder.Services.AddScoped<IVillaNumberRepository, VillaNumberRepository>();
+
             builder.Services.AddAutoMapper(typeof(MappingConfig));
 
             //note you must add the newtonsoftJson to deserialize the JsonPathDocument

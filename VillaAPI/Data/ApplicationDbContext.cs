@@ -9,7 +9,8 @@ namespace VillaAPI.Data
     {
         public DbSet<Villa> Villas { get; set; }
 
-
+        public DbSet<VillaNumber> VillaNumbers { get; set; }
+        
         //add ctor that expects a dbcontext options 'DI'
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)

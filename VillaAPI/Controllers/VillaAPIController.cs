@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using VillaAPI.Repository.IRepository;
 using System.Net;
 using Azure;
+using Microsoft.AspNetCore.Authorization;
 
 namespace VillaAPI.Controllers
 {
@@ -66,6 +67,7 @@ namespace VillaAPI.Controllers
          *  If you don’t use await, the method completes instantly and returns a Task<int>, without waiting for the delay to finish.
          */
         [HttpGet]
+        [Authorize]
         public async Task<ActionResult<APIResponse>> GetVillas()
         {
             try
@@ -87,6 +89,9 @@ namespace VillaAPI.Controllers
 
 
         [HttpGet("{id:int}", Name = "GetVilla")]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         //define the multiple responsed that can be produced
         [ProducesResponseType(200, Type = typeof(VillaDTO))] //Ok + can specify the success model
         [ProducesResponseType(404)] //NotFound
@@ -122,6 +127,9 @@ namespace VillaAPI.Controllers
 
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]   
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         [ProducesResponseType(StatusCodes.Status201Created)]
@@ -185,10 +193,15 @@ namespace VillaAPI.Controllers
 
         }
 
+
+        [HttpDelete("{id:int}", Name = "DeleteVilla")]
+        //[Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [HttpDelete("{id:int}", Name = "DeleteVilla")]
+        //since we added authorization, role-based access
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]   //if user not logged in
+        [ProducesResponseType(StatusCodes.Status403Forbidden)] // if user is logged in but not the role who can access
         public async Task<ActionResult<APIResponse>> DeleteVilla(int id)
         {
             try
@@ -220,9 +233,13 @@ namespace VillaAPI.Controllers
 
         }
 
+
+        [HttpPut("{id:int}", Name = "UpdateVilla")] //update the whole record, common
+        [Authorize(Roles = "Admin")]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
-        [HttpPut("{id:int}", Name = "UpdateVilla")] //update the whole record, common
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
         public async Task<ActionResult<APIResponse>> UpdateVilla(int id, [FromBody] VillaUpdateDTO updateDTO)
         {
             try

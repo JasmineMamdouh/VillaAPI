@@ -10,6 +10,7 @@ namespace VillaAPI.Data
         public DbSet<Villa> Villas { get; set; }
 
         public DbSet<VillaNumber> VillaNumbers { get; set; }
+        public DbSet<LocalUser> LocalUsers { get; set; }
         
         //add ctor that expects a dbcontext options 'DI'
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)

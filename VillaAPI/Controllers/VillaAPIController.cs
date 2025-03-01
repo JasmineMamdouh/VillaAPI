@@ -69,18 +69,18 @@ namespace VillaAPI.Controllers
         [HttpGet]
         //[Authorize]
         public async Task<ActionResult<APIResponse>> GetVillas([FromQuery(Name = "filterOccupancy")]int?occupancy
-            , [FromQuery] string? search)
+            , [FromQuery] string? search, [FromQuery] int pageSize = 2, [FromQuery] int pageNumber = 1)
         {
             try
             {
                 IEnumerable<Villa> villaList;
                 if (occupancy > 0)
                 {
-                    villaList = await _dbVilla.GetAllAsync(u => u.Occupancy == occupancy);
+                    villaList = await _dbVilla.GetAllAsync(u => u.Occupancy == occupancy, pageSize:pageSize, pageNumber:pageNumber);
                 }
                 else
                 {
-                    villaList = await _dbVilla.GetAllAsync();
+                    villaList = await _dbVilla.GetAllAsync(pageSize: pageSize, pageNumber: pageNumber);
                 }
                 //add search by name or amenity, done in coding not on db
                 if (!string.IsNullOrEmpty(search))

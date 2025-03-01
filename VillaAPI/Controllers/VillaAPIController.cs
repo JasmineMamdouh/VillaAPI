@@ -67,12 +67,21 @@ namespace VillaAPI.Controllers
          *  If you don’t use await, the method completes instantly and returns a Task<int>, without waiting for the delay to finish.
          */
         [HttpGet]
-        [Authorize]
-        public async Task<ActionResult<APIResponse>> GetVillas()
+        //[Authorize]
+        public async Task<ActionResult<APIResponse>> GetVillas([FromQuery(Name = "filterOccupancy")]int?occupancy)
         {
             try
             {
-                IEnumerable<Villa> villaList = await _dbVilla.GetAllAsync();
+                IEnumerable<Villa> villaList;
+                if (occupancy > 0)
+                {
+                    villaList = await _dbVilla.GetAllAsync(u => u.Occupancy == occupancy);
+                }
+                else
+                {
+                    villaList = await _dbVilla.GetAllAsync();
+                }
+               
                 //logger.LogInformation("Getting all Villas");    //using logging
                 _response.Result = mapper.Map<List<VillaDTO>>(villaList);
                 _response.StatusCode = HttpStatusCode.OK;

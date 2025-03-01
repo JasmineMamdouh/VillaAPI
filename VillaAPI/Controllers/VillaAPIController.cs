@@ -68,7 +68,8 @@ namespace VillaAPI.Controllers
          */
         [HttpGet]
         //[Authorize]
-        public async Task<ActionResult<APIResponse>> GetVillas([FromQuery(Name = "filterOccupancy")]int?occupancy)
+        public async Task<ActionResult<APIResponse>> GetVillas([FromQuery(Name = "filterOccupancy")]int?occupancy
+            , [FromQuery] string? search)
         {
             try
             {
@@ -80,6 +81,12 @@ namespace VillaAPI.Controllers
                 else
                 {
                     villaList = await _dbVilla.GetAllAsync();
+                }
+                //add search by name or amenity, done in coding not on db
+                if (!string.IsNullOrEmpty(search))
+                {
+                    villaList = villaList.Where(u => u.Name.ToLower().Contains(search)
+                    || u.Amenity.ToLower().Contains(search));
                 }
                
                 //logger.LogInformation("Getting all Villas");    //using logging

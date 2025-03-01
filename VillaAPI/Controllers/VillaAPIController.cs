@@ -13,6 +13,8 @@ using VillaAPI.Repository.IRepository;
 using System.Net;
 using Azure;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace VillaAPI.Controllers
 {
@@ -88,8 +90,12 @@ namespace VillaAPI.Controllers
                     villaList = villaList.Where(u => u.Name.ToLower().Contains(search)
                     || u.Amenity.ToLower().Contains(search));
                 }
-               
+
+
                 //logger.LogInformation("Getting all Villas");    //using logging
+
+                Pagination pagination = new() { PageNumber = pageNumber, PageSize = pageSize };
+                Response.Headers.Add("X-Pagination", JsonSerializer.Serialize(pagination));
                 _response.Result = mapper.Map<List<VillaDTO>>(villaList);
                 _response.StatusCode = HttpStatusCode.OK;
                 return Ok(_response);
